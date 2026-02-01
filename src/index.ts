@@ -5,7 +5,6 @@ import {
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
 import dotenv from "dotenv";
 import { WordPressClient } from "./wordpress.js";
 import { logger } from "./utils/logger.js";
