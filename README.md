@@ -2,7 +2,19 @@
 
 A Model Context Protocol (MCP) server that lets Claude manage WordPress sites through the WordPress REST API.
 
-**Built by [wolffcatskyy](https://github.com/wolffcatskyy), [Claude](https://claude.ai), and [Perplexity](https://perplexity.ai).**
+---
+
+### We've Reinvented Contributing
+
+Every issue in this repo is **AI-Ready** — structured with full context, file paths, implementation guides, acceptance criteria, and a ready-to-use AI prompt at the bottom.
+
+**Pick an issue. Copy the prompt. Paste into your AI tool. Submit a PR.**
+
+No codebase knowledge required. No onboarding docs to read. Just pick an issue and go.
+
+[**Browse Issues →**](https://github.com/wolffcatskyy/wordpress-mcp/issues)
+
+---
 
 ## Features
 
@@ -109,6 +121,10 @@ src/
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how to help -- including using AI tools to tackle open issues.
+
+## Acknowledgments
+
+Built with [Claude](https://claude.ai) and [Perplexity](https://perplexity.ai).
 
 ## License
 
