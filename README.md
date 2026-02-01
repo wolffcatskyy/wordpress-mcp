@@ -2,6 +2,8 @@
 
 A Model Context Protocol (MCP) server that lets Claude manage WordPress sites through the WordPress REST API.
 
+**Built by [wolffcatskyy](https://github.com/wolffcatskyy), [Claude](https://claude.ai), and [Perplexity](https://perplexity.ai).**
+
 ## Features
 
 - **Posts**: Create, read, update, delete, publish, search
