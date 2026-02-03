@@ -1,4 +1,4 @@
-import { Server } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
@@ -243,6 +243,40 @@ const tools: Tool[] = [
       properties: {},
     },
   },
+  {
+    name: "search_site",
+    description:
+      "Search across all WordPress content types (posts, pages, categories, tags, media) in a single query. Returns matching results with their type, title, and URL.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        search: {
+          type: "string",
+          description: "Search term to find across all content",
+        },
+        per_page: {
+          type: "number",
+          description: "Number of results per page (default: 10, max: 100)",
+        },
+        page: {
+          type: "number",
+          description: "Page number for pagination (default: 1)",
+        },
+        type: {
+          type: "string",
+          enum: ["post", "term", "post-format"],
+          description:
+            "Limit search to a specific content type (default: all types)",
+        },
+        subtype: {
+          type: "string",
+          enum: ["post", "page", "category", "tag", "any"],
+          description: "Limit search to a specific subtype (default: any)",
+        },
+      },
+      required: ["search"],
+    },
+  },
 ];
 
 // Create MCP server
@@ -382,6 +416,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text" as const,
               text: JSON.stringify(await wordpress.getSiteInfo(), null, 2),
+            },
+          ],
+        };
+
+      case "search_site":
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                await wordpress.searchSite(args as any),
+                null,
+                2
+              ),
             },
           ],
         };
