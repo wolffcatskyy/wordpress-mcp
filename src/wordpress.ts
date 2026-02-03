@@ -20,6 +20,14 @@ interface CreatePostParams {
   tags?: number[];
 }
 
+interface SearchParams {
+  search: string;
+  per_page?: number;
+  page?: number;
+  type?: string;
+  subtype?: string;
+}
+
 export class WordPressClient {
   private client: AxiosInstance;
   private baseURL: string;
@@ -265,6 +273,43 @@ export class WordPressClient {
     } catch (error) {
       throw new Error(
         `Failed to fetch site info: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+  async searchSite(params: SearchParams) {
+    try {
+      if (!params.search) throw new Error("Search term is required");
+
+      const queryParams = {
+        search: params.search,
+        per_page: Math.min(params.per_page || 10, 100),
+        page: params.page || 1,
+        ...(params.type && { type: params.type }),
+        ...(params.subtype && { subtype: params.subtype }),
+      };
+
+      logger.info("Searching site", { queryParams });
+
+      const response = await this.client.get("/search", { params: queryParams });
+
+      return {
+        results: response.data.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          url: item.url,
+          type: item.type,
+          subtype: item.subtype,
+        })),
+        total: response.headers["x-wp-total"],
+        totalPages: response.headers["x-wp-totalpages"],
+        currentPage: queryParams.page,
+        searchTerm: params.search,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to search site: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
     }
   }
