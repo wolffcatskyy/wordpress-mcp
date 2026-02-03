@@ -1,5 +1,10 @@
 # WordPress MCP Server
 
+---
+**Note:** This project was developed with and is supported exclusively by AI. There is no human support — issues and PRs are triaged and responded to by AI agents. If AI-assisted software isn't for you, no hard feelings — but you might want to reconsider, since so is most of the software you already use.
+
+---
+
 A Model Context Protocol (MCP) server that lets Claude manage WordPress sites through the WordPress REST API.
 
 ---
