@@ -277,6 +277,119 @@ const tools: Tool[] = [
       required: ["search"],
     },
   },
+  // ===== Media Tools =====
+  {
+    name: "upload_media",
+    description:
+      "Upload a media file (image, video, PDF, etc.) to WordPress. Provide file data as base64-encoded string. Returns the attachment ID which can be used as featured_media on posts.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        filename: {
+          type: "string",
+          description:
+            "Filename with extension (e.g., 'photo.jpg', 'document.pdf')",
+        },
+        data: {
+          type: "string",
+          description: "Base64-encoded file content",
+        },
+        title: {
+          type: "string",
+          description: "Media title",
+        },
+        alt_text: {
+          type: "string",
+          description: "Alt text for images (accessibility)",
+        },
+        caption: {
+          type: "string",
+          description: "Media caption",
+        },
+        description: {
+          type: "string",
+          description: "Media description",
+        },
+      },
+      required: ["filename", "data"],
+    },
+  },
+  {
+    name: "get_media",
+    description:
+      "Get details of a single media attachment by ID (URL, dimensions, alt text, etc.)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "number",
+          description: "Media attachment ID",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "list_media",
+    description:
+      "List media attachments in the WordPress media library with optional filtering",
+    inputSchema: {
+      type: "object",
+      properties: {
+        per_page: {
+          type: "number",
+          description:
+            "Number of items per page (default: 10, max: 100)",
+        },
+        page: {
+          type: "number",
+          description: "Page number (default: 1)",
+        },
+        search: {
+          type: "string",
+          description: "Search media by title",
+        },
+        media_type: {
+          type: "string",
+          enum: ["image", "video", "audio", "application"],
+          description: "Filter by media type",
+        },
+        mime_type: {
+          type: "string",
+          description: "Filter by MIME type (e.g., 'image/jpeg')",
+        },
+        orderby: {
+          type: "string",
+          enum: ["date", "title", "id"],
+          description: "Order by field",
+        },
+        order: {
+          type: "string",
+          enum: ["asc", "desc"],
+          description: "Sort order",
+        },
+      },
+    },
+  },
+  {
+    name: "delete_media",
+    description: "Permanently delete a media attachment from WordPress",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "number",
+          description: "Media attachment ID to delete",
+        },
+        force: {
+          type: "boolean",
+          description:
+            "Must be true for media (media doesn't support trash). Defaults to true.",
+        },
+      },
+      required: ["id"],
+    },
+  },
 ];
 
 // Create MCP server
@@ -427,6 +540,66 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               type: "text" as const,
               text: JSON.stringify(
                 await wordpress.searchSite(args as any),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      // ===== Media Handlers =====
+      case "upload_media":
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                await wordpress.uploadMedia(args as any),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case "get_media":
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                await wordpress.getMedia((args as any).id),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case "list_media":
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                await wordpress.listMedia(args as any),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case "delete_media":
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                await wordpress.deleteMedia(
+                  (args as any).id,
+                  (args as any).force
+                ),
                 null,
                 2
               ),

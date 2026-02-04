@@ -28,6 +28,25 @@ interface SearchParams {
   subtype?: string;
 }
 
+interface UploadMediaParams {
+  filename: string;
+  data: string; // base64-encoded file content
+  title?: string;
+  alt_text?: string;
+  caption?: string;
+  description?: string;
+}
+
+interface MediaListParams {
+  per_page?: number;
+  page?: number;
+  search?: string;
+  media_type?: string;
+  mime_type?: string;
+  orderby?: string;
+  order?: string;
+}
+
 export class WordPressClient {
   private client: AxiosInstance;
   private baseURL: string;
@@ -250,6 +269,157 @@ export class WordPressClient {
     }
   }
 
+  // ===== Media Management =====
+
+  private getMimeType(filename: string): string {
+    const ext = filename.split(".").pop()?.toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      gif: "image/gif",
+      webp: "image/webp",
+      svg: "image/svg+xml",
+      pdf: "application/pdf",
+      mp4: "video/mp4",
+      mp3: "audio/mpeg",
+      wav: "audio/wav",
+    };
+    return mimeTypes[ext || ""] || "application/octet-stream";
+  }
+
+  async uploadMedia(params: UploadMediaParams) {
+    try {
+      if (!params.filename) {
+        throw new Error("Filename is required");
+      }
+      if (!params.data) {
+        throw new Error("File data (base64) is required");
+      }
+
+      logger.info("Uploading media", { filename: params.filename });
+
+      const fileBuffer = Buffer.from(params.data, "base64");
+
+      // WordPress media upload requires sending raw binary data with Content-Disposition header
+      const response = await this.client.post("/media", fileBuffer, {
+        headers: {
+          "Content-Type": this.getMimeType(params.filename),
+          "Content-Disposition": `attachment; filename="${params.filename}"`,
+        },
+      });
+
+      // Update title, alt_text, caption, description if provided
+      const metaUpdates: Record<string, unknown> = {};
+      if (params.title) metaUpdates.title = params.title;
+      if (params.alt_text) metaUpdates.alt_text = params.alt_text;
+      if (params.caption) metaUpdates.caption = params.caption;
+      if (params.description) metaUpdates.description = params.description;
+
+      if (Object.keys(metaUpdates).length > 0) {
+        await this.client.post(`/media/${response.data.id}`, metaUpdates);
+      }
+
+      logger.info("Media uploaded successfully", { mediaId: response.data.id });
+
+      return {
+        id: response.data.id,
+        title: response.data.title.rendered,
+        source_url: response.data.source_url,
+        media_type: response.data.media_type,
+        mime_type: response.data.mime_type,
+        link: response.data.link,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to upload media: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async getMedia(id: number) {
+    try {
+      logger.info("Fetching media", { id });
+
+      const response = await this.client.get(`/media/${id}`);
+
+      return {
+        id: response.data.id,
+        title: response.data.title.rendered,
+        source_url: response.data.source_url,
+        media_type: response.data.media_type,
+        mime_type: response.data.mime_type,
+        alt_text: response.data.alt_text,
+        caption: response.data.caption?.rendered,
+        description: response.data.description?.rendered,
+        media_details: response.data.media_details,
+        link: response.data.link,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to fetch media ${id}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async listMedia(params: MediaListParams = {}) {
+    try {
+      const queryParams = {
+        per_page: Math.min(params.per_page || 10, 100),
+        page: params.page || 1,
+        orderby: params.orderby || "date",
+        order: params.order || "desc",
+        ...(params.search && { search: params.search }),
+        ...(params.media_type && { media_type: params.media_type }),
+        ...(params.mime_type && { mime_type: params.mime_type }),
+      };
+
+      logger.info("Listing media", { queryParams });
+
+      const response = await this.client.get("/media", { params: queryParams });
+
+      return {
+        media: response.data.map((item: any) => ({
+          id: item.id,
+          title: item.title.rendered,
+          source_url: item.source_url,
+          media_type: item.media_type,
+          mime_type: item.mime_type,
+          date: item.date,
+        })),
+        total: response.headers["x-wp-total"],
+        totalPages: response.headers["x-wp-totalpages"],
+        currentPage: queryParams.page,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to list media: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async deleteMedia(id: number, force: boolean = true) {
+    try {
+      logger.info("Deleting media", { id, force });
+
+      // Note: WordPress requires force=true for media deletion (media doesn't support trash)
+      const response = await this.client.delete(`/media/${id}`, {
+        params: { force },
+      });
+
+      logger.info("Media deleted successfully", { mediaId: id });
+
+      return {
+        message: "Media permanently deleted",
+        id: response.data.id,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to delete media ${id}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
   async getSiteInfo() {
     try {
       logger.info("Fetching site info");
@@ -268,6 +438,8 @@ export class WordPressClient {
           canDeletePosts: true,
           canManageCategories: true,
           canManageTags: true,
+          canUploadMedia: true,
+          canDeleteMedia: true,
         },
       };
     } catch (error) {
