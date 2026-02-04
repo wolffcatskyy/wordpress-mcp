@@ -552,6 +552,128 @@ const tools: Tool[] = [
       required: ["id"],
     },
   },
+  // ===== Comment Tools =====
+  {
+    name: "get_comments",
+    description:
+      "Retrieve WordPress comments with optional filtering by post, status, and search",
+    inputSchema: {
+      type: "object",
+      properties: {
+        post: {
+          type: "number",
+          description: "Filter comments by post ID",
+        },
+        status: {
+          type: "string",
+          enum: ["approved", "hold", "spam", "trash"],
+          description: "Comment status filter",
+        },
+        per_page: {
+          type: "number",
+          description:
+            "Number of comments per page (default: 10, max: 100)",
+        },
+        page: {
+          type: "number",
+          description: "Page number (default: 1)",
+        },
+        search: {
+          type: "string",
+          description: "Search comments by content",
+        },
+        orderby: {
+          type: "string",
+          enum: ["date", "date_gmt", "id"],
+          description: "Order comments by field",
+        },
+        order: {
+          type: "string",
+          enum: ["asc", "desc"],
+          description: "Sort order",
+        },
+      },
+    },
+  },
+  {
+    name: "create_comment",
+    description: "Create a new comment on a WordPress post",
+    inputSchema: {
+      type: "object",
+      properties: {
+        post: {
+          type: "number",
+          description: "Post ID to comment on",
+        },
+        content: {
+          type: "string",
+          description: "Comment content (HTML)",
+        },
+        author_name: {
+          type: "string",
+          description: "Comment author display name",
+        },
+        author_email: {
+          type: "string",
+          description: "Comment author email",
+        },
+        parent: {
+          type: "number",
+          description: "Parent comment ID (for replies/threading)",
+        },
+        status: {
+          type: "string",
+          enum: ["approved", "hold", "spam"],
+          description: "Comment status (default: approved)",
+        },
+      },
+      required: ["post", "content"],
+    },
+  },
+  {
+    name: "update_comment",
+    description:
+      "Update an existing comment (content or moderation status)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "number",
+          description: "Comment ID",
+        },
+        content: {
+          type: "string",
+          description: "Updated comment content",
+        },
+        status: {
+          type: "string",
+          enum: ["approved", "hold", "spam", "trash"],
+          description:
+            "Updated comment status (use for moderation)",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "delete_comment",
+    description:
+      "Delete a WordPress comment (moves to trash by default)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "number",
+          description: "Comment ID to delete",
+        },
+        force: {
+          type: "boolean",
+          description: "Permanently delete instead of trash",
+        },
+      },
+      required: ["id"],
+    },
+  },
 ];
 
 // Create MCP server
@@ -846,6 +968,69 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               type: "text" as const,
               text: JSON.stringify(
                 await wordpress.publishPage((args as any).id),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      // ===== Comment Handlers =====
+      case "get_comments":
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                await wordpress.getComments(args),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case "create_comment":
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                await wordpress.createComment(args as any),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case "update_comment":
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                await wordpress.updateComment(
+                  (args as any).id,
+                  args as any
+                ),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case "delete_comment":
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                await wordpress.deleteComment(
+                  (args as any).id,
+                  (args as any).force
+                ),
                 null,
                 2
               ),
