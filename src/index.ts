@@ -390,6 +390,168 @@ const tools: Tool[] = [
       required: ["id"],
     },
   },
+  // ===== Page Tools =====
+  {
+    name: "get_pages",
+    description:
+      "Retrieve WordPress pages with optional filtering and pagination",
+    inputSchema: {
+      type: "object",
+      properties: {
+        search: {
+          type: "string",
+          description: "Search pages by title or content",
+        },
+        per_page: {
+          type: "number",
+          description: "Number of pages per page (default: 10, max: 100)",
+        },
+        page: {
+          type: "number",
+          description: "Page number (default: 1)",
+        },
+        status: {
+          type: "string",
+          enum: ["publish", "draft", "pending", "private"],
+          description: "Page status filter",
+        },
+        parent: {
+          type: "number",
+          description: "Filter by parent page ID",
+        },
+        orderby: {
+          type: "string",
+          enum: ["date", "title", "id", "modified"],
+          description: "Order pages by field",
+        },
+        order: {
+          type: "string",
+          enum: ["asc", "desc"],
+          description: "Sort order",
+        },
+      },
+    },
+  },
+  {
+    name: "get_page",
+    description: "Retrieve a single WordPress page by ID",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "number",
+          description: "WordPress page ID",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "create_page",
+    description: "Create a new WordPress page",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: {
+          type: "string",
+          description: "Page title",
+        },
+        content: {
+          type: "string",
+          description: "Page content/body HTML",
+        },
+        excerpt: {
+          type: "string",
+          description: "Page excerpt",
+        },
+        status: {
+          type: "string",
+          enum: ["publish", "draft", "pending"],
+          description: "Page status (default: draft)",
+        },
+        featured_media: {
+          type: "number",
+          description: "Featured image attachment ID",
+        },
+        parent: {
+          type: "number",
+          description: "Parent page ID (for hierarchical page structures)",
+        },
+      },
+      required: ["title"],
+    },
+  },
+  {
+    name: "update_page",
+    description: "Update an existing WordPress page",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "number",
+          description: "Page ID",
+        },
+        title: {
+          type: "string",
+          description: "Page title",
+        },
+        content: {
+          type: "string",
+          description: "Page content/body HTML",
+        },
+        excerpt: {
+          type: "string",
+          description: "Page excerpt",
+        },
+        status: {
+          type: "string",
+          enum: ["publish", "draft", "pending"],
+          description: "Page status",
+        },
+        featured_media: {
+          type: "number",
+          description: "Featured image attachment ID",
+        },
+        parent: {
+          type: "number",
+          description: "Parent page ID (for hierarchical page structures)",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "delete_page",
+    description: "Delete a WordPress page (moves to trash)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "number",
+          description: "Page ID to delete",
+        },
+        force: {
+          type: "boolean",
+          description: "Permanently delete instead of trash",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "publish_page",
+    description: "Publish a draft or pending page immediately",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "number",
+          description: "Page ID to publish",
+        },
+      },
+      required: ["id"],
+    },
+  },
 ];
 
 // Create MCP server
@@ -600,6 +762,90 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                   (args as any).id,
                   (args as any).force
                 ),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      // ===== Page Handlers =====
+      case "get_pages":
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(await wordpress.getPages(args), null, 2),
+            },
+          ],
+        };
+
+      case "get_page":
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                await wordpress.getPage((args as any).id),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case "create_page":
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                await wordpress.createPage(args as any),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case "update_page":
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                await wordpress.updatePage((args as any).id, args as any),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case "delete_page":
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                await wordpress.deletePage(
+                  (args as any).id,
+                  (args as any).force
+                ),
+                null,
+                2
+              ),
+            },
+          ],
+        };
+
+      case "publish_page":
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                await wordpress.publishPage((args as any).id),
                 null,
                 2
               ),

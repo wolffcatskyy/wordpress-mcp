@@ -47,6 +47,25 @@ interface MediaListParams {
   order?: string;
 }
 
+interface PageParams {
+  search?: string;
+  per_page?: number;
+  page?: number;
+  status?: string;
+  orderby?: string;
+  order?: string;
+  parent?: number;
+}
+
+interface CreatePageParams {
+  title: string;
+  content?: string;
+  excerpt?: string;
+  status?: string;
+  featured_media?: number;
+  parent?: number;
+}
+
 export class WordPressClient {
   private client: AxiosInstance;
   private baseURL: string;
@@ -269,6 +288,158 @@ export class WordPressClient {
     }
   }
 
+  // ===== Page Management =====
+
+  async getPages(params: PageParams = {}) {
+    try {
+      const queryParams = {
+        per_page: Math.min(params.per_page || 10, 100),
+        page: params.page || 1,
+        status: params.status || "publish",
+        orderby: params.orderby || "date",
+        order: params.order || "desc",
+        ...(params.search && { search: params.search }),
+        ...(params.parent !== undefined && { parent: params.parent }),
+      };
+
+      logger.info("Fetching pages", { queryParams });
+
+      const response = await this.client.get("/pages", { params: queryParams });
+
+      return {
+        pages: response.data,
+        total: response.headers["x-wp-total"],
+        totalPages: response.headers["x-wp-totalpages"],
+        currentPage: queryParams.page,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to fetch pages: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async getPage(id: number) {
+    try {
+      logger.info("Fetching page", { id });
+      const response = await this.client.get(`/pages/${id}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        `Failed to fetch page ${id}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async createPage(params: CreatePageParams) {
+    try {
+      if (!params.title) {
+        throw new Error("Page title is required");
+      }
+
+      logger.info("Creating page", { title: params.title });
+
+      const payload = {
+        title: params.title,
+        content: params.content || "",
+        excerpt: params.excerpt || "",
+        status: params.status || "draft",
+        ...(params.featured_media && { featured_media: params.featured_media }),
+        ...(params.parent !== undefined && { parent: params.parent }),
+      };
+
+      const response = await this.client.post("/pages", payload);
+
+      logger.info("Page created successfully", { pageId: response.data.id });
+
+      return {
+        id: response.data.id,
+        title: response.data.title.rendered,
+        link: response.data.link,
+        status: response.data.status,
+        parent: response.data.parent,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to create page: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async updatePage(id: number, params: Partial<CreatePageParams>) {
+    try {
+      logger.info("Updating page", { id });
+
+      const payload: Record<string, unknown> = {};
+      if (params.title) payload.title = params.title;
+      if (params.content) payload.content = params.content;
+      if (params.excerpt) payload.excerpt = params.excerpt;
+      if (params.status) payload.status = params.status;
+      if (params.featured_media) payload.featured_media = params.featured_media;
+      if (params.parent !== undefined) payload.parent = params.parent;
+
+      const response = await this.client.post(`/pages/${id}`, payload);
+
+      logger.info("Page updated successfully", { pageId: id });
+
+      return {
+        id: response.data.id,
+        title: response.data.title.rendered,
+        link: response.data.link,
+        status: response.data.status,
+        parent: response.data.parent,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to update page ${id}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async deletePage(id: number, force: boolean = false) {
+    try {
+      logger.info("Deleting page", { id, force });
+
+      const response = await this.client.delete(`/pages/${id}`, {
+        params: { force },
+      });
+
+      logger.info("Page deleted successfully", { pageId: id });
+
+      return {
+        message: force ? "Page permanently deleted" : "Page moved to trash",
+        id: response.data.id,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to delete page ${id}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async publishPage(id: number) {
+    try {
+      logger.info("Publishing page", { id });
+
+      const response = await this.client.post(`/pages/${id}`, {
+        status: "publish",
+      });
+
+      logger.info("Page published successfully", { pageId: id });
+
+      return {
+        id: response.data.id,
+        title: response.data.title.rendered,
+        link: response.data.link,
+        status: response.data.status,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to publish page ${id}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
   // ===== Media Management =====
 
   private getMimeType(filename: string): string {
@@ -436,6 +607,9 @@ export class WordPressClient {
           canCreatePosts: true,
           canUpdatePosts: true,
           canDeletePosts: true,
+          canCreatePages: true,
+          canUpdatePages: true,
+          canDeletePages: true,
           canManageCategories: true,
           canManageTags: true,
           canUploadMedia: true,
