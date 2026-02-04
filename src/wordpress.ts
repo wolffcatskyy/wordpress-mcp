@@ -47,6 +47,25 @@ interface MediaListParams {
   order?: string;
 }
 
+interface CommentParams {
+  post?: number;
+  status?: string;
+  per_page?: number;
+  page?: number;
+  search?: string;
+  orderby?: string;
+  order?: string;
+}
+
+interface CreateCommentParams {
+  post: number;
+  content: string;
+  author_name?: string;
+  author_email?: string;
+  parent?: number;
+  status?: string;
+}
+
 interface PageParams {
   search?: string;
   per_page?: number;
@@ -284,6 +303,122 @@ export class WordPressClient {
     } catch (error) {
       throw new Error(
         `Failed to publish post ${id}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  // ===== Comment Management =====
+
+  async getComments(params: CommentParams = {}) {
+    try {
+      const queryParams = {
+        per_page: Math.min(params.per_page || 10, 100),
+        page: params.page || 1,
+        orderby: params.orderby || "date_gmt",
+        order: params.order || "desc",
+        ...(params.post && { post: params.post }),
+        ...(params.status && { status: params.status }),
+        ...(params.search && { search: params.search }),
+      };
+
+      logger.info("Fetching comments", { queryParams });
+
+      const response = await this.client.get("/comments", { params: queryParams });
+
+      return {
+        comments: response.data,
+        total: response.headers["x-wp-total"],
+        totalPages: response.headers["x-wp-totalpages"],
+        currentPage: queryParams.page,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to fetch comments: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async createComment(params: CreateCommentParams) {
+    try {
+      if (!params.post) {
+        throw new Error("Post ID is required");
+      }
+      if (!params.content) {
+        throw new Error("Comment content is required");
+      }
+
+      logger.info("Creating comment", { post: params.post });
+
+      const payload = {
+        post: params.post,
+        content: params.content,
+        status: params.status || "approved",
+        ...(params.author_name && { author_name: params.author_name }),
+        ...(params.author_email && { author_email: params.author_email }),
+        ...(params.parent && { parent: params.parent }),
+      };
+
+      const response = await this.client.post("/comments", payload);
+
+      logger.info("Comment created successfully", { commentId: response.data.id });
+
+      return {
+        id: response.data.id,
+        post: response.data.post,
+        content: response.data.content.rendered,
+        status: response.data.status,
+        author_name: response.data.author_name,
+        date: response.data.date,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to create comment: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async updateComment(id: number, params: { content?: string; status?: string }) {
+    try {
+      logger.info("Updating comment", { id });
+
+      const payload: Record<string, unknown> = {};
+      if (params.content) payload.content = params.content;
+      if (params.status) payload.status = params.status;
+
+      const response = await this.client.post(`/comments/${id}`, payload);
+
+      logger.info("Comment updated successfully", { commentId: id });
+
+      return {
+        id: response.data.id,
+        post: response.data.post,
+        content: response.data.content.rendered,
+        status: response.data.status,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to update comment ${id}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async deleteComment(id: number, force: boolean = false) {
+    try {
+      logger.info("Deleting comment", { id, force });
+
+      const response = await this.client.delete(`/comments/${id}`, {
+        params: { force },
+      });
+
+      logger.info("Comment deleted successfully", { commentId: id });
+
+      return {
+        message: force ? "Comment permanently deleted" : "Comment moved to trash",
+        id: response.data.id,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to delete comment ${id}: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
@@ -612,6 +747,7 @@ export class WordPressClient {
           canDeletePages: true,
           canManageCategories: true,
           canManageTags: true,
+          canManageComments: true,
           canUploadMedia: true,
           canDeleteMedia: true,
         },
